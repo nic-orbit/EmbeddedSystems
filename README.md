@@ -2,7 +2,9 @@
 
 # Contributers
 Mattia
-Gargi
-Nicolas
 
-test
+Gargi
+
+Julia
+
+Nicolas
