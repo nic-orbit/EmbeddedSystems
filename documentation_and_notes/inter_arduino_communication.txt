@@ -1,0 +1,7 @@
+With SoftwareSerial.h library: 
+
+We can use any digital pins for inter arduino communication. 
+
+SUART to send / recv messages to & from other arduino
+
+Serial to send / recv messages to & from PC
