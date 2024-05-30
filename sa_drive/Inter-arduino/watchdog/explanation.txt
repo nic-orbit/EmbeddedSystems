@@ -1,0 +1,11 @@
+    Master Code:
+        Sends a "ping" message every 2 seconds.
+        Waits for a "pong" response for up to 1 second.
+        Logs if no response is received within the timeout period.
+
+    Slave Code:
+        Listens for the "ping" message.
+        Responds with "pong" when a "ping" is received.
+        If no "ping" is received for 3 seconds, it assumes the master has failed and takes appropriate action (currently, it logs a message indicating it will take over).
+
+These adjustments ensure that both the master and the slave monitor each other's operational status and take action if the other becomes unresponsive.

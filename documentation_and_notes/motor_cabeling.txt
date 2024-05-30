@@ -1,0 +1,18 @@
+motor cabeling
+
+motor ; cable color ; arduino digital write (DW) ; arduino digital read (DR)
+
+IN1 ; yellow ; DW8 ; DR4
+IN2 ; green+black ; DW9 ; DR5
+IN3 ; blue ; DW10 ; DR6
+IN4 ; black+gray ; DW11 ; DR7
+
+
+Control Sequence: 
+
+ * Step   |  IN1 IN2 IN3 IN4
+ *    1   |   1   0   1   0
+ *    2   |   0   1   1   0
+ *    3   |   0   1   0   1
+ *    4   |   1   0   0   1
+
