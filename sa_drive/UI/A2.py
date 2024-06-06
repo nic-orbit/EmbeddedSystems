@@ -22,6 +22,23 @@ def send_angle(angle, serialz):
         print(f"Sent angle {angle} to Arduino {i}.")
         time.sleep(0.1)
 
+def read_fault_knowledge(serialz):
+    for i in range(len(serialz)):
+        try:
+            fault_knowledge = serialz[i].readline().decode().strip()
+            if fault_knowledge == "":
+                print(f"Arduino {i} did not respond.")
+            elif fault_knowledge == "Slave not responding, taking over...":
+                print(f"Arduino {i} did not respond. Taking over control.")
+                time.sleep(3)
+            elif fault_knowledge == "M1 fail":
+                print(f"Fault detected in M1 on Arduino {i}. M2 has been activated.")
+            else:
+                print(f"Arduino {i} responded: {fault_knowledge}")
+        except serial.SerialException:
+            print(f"Error reading from Arduino {i}.")
+
+
 
 def main():
     arduino_ports = choose_serial_ports()
@@ -37,6 +54,8 @@ def main():
 
     try:
         pls_Stop = True
+        print(serialz[0].readline().decode().strip())
+        print(serialz[1].readline().decode().strip())
         while pls_Stop:
             angle_in = simpledialog.askfloat("Input", "Enter the angle:")
             if angle_in is None:
@@ -46,11 +65,9 @@ def main():
                 if abs(angle_in) > 360:
                     angle_in = angle_in % 360
                 send_angle(angle_in, serialz)
-                time.sleep((abs(angle_in)/360)/(5/60))
-                fault_knowledge = ser1.readline()
-                if fault_knowledge == b"M1 fail":
-                    print("Fault detected in M1. M2 has been activated.")
-                    break
+                time.sleep(1)
+                time.sleep((abs(angle_in)/360)/(2/60))
+                read_fault_knowledge(serialz)
             else:
                 print("Invalid input. Please enter a number.")
 
