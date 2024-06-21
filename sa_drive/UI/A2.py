@@ -22,6 +22,7 @@ def send_angle(angle, serialz):
         print(f"Sent angle {angle} to Arduino {i}.")
         time.sleep(0.1)
 
+
 def read_fault_knowledge(serialz):
     for i in range(len(serialz)):
         try:
