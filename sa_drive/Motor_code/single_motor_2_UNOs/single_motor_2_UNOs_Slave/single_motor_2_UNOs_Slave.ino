@@ -107,8 +107,8 @@ void moveSM_to_angle(long angle) {
     delay(10);  // Short delay to allow the motor to step smoothly
 
   // Check if encoder position matches the expected steps
-    long expectedPos = initialEncoderPos + (i + 1) * (targetSteps > 0 ? 1 : -1);
-      if (abs(encoder0Pos - expectedPos) > 5) { // Tolerance to be calculated
+    long expectedPos = initialEncoderPos + (i + 1) * (steps > 0 ? 1 : -1);
+      if (abs(encoder0Pos - (expectedPos/102)) > 5) { // Tolerance to be calculated
         Serial.println("Encoder mismatch detected! Motor malfunctioning.");
         return;
 }
@@ -118,7 +118,7 @@ void moveSM_to_angle(long angle) {
   Serial.print("Target steps: ");
   Serial.println(steps);
   Serial.print("Actual steps: ");
-  Serial.println(encoder0Pos - initialEncoderPos);
+  Serial.println((encoder0Pos - initialEncoderPos)*102);
   delay(1000);
 }
 
