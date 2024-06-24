@@ -1,0 +1,5 @@
+1. Master checks on slave
+2. Slave is making the motor move
+3. Slave fails to respond
+4. Master takes over, ensures that slave is out of business 
+5. Master does the work himself/herself
