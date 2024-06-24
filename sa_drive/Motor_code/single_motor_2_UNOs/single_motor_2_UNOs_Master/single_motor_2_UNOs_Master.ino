@@ -6,13 +6,15 @@
 bool DEBUG = true; // use this to switch on debug prints into the serial monitor, 
               // this will break the python interface communication
 
-int stepsPerRevolution = 2048*3;
+int stepsPerRevolution = 2048*3/3.5;
 Stepper myStepper = Stepper(stepsPerRevolution, 8, 10, 9, 11);
 int angleIn = 0;
 
 // PIN allocations for Software Serial
 int SUART_IN = 2;
 int SUART_OUT = 3;
+// PIN allocation for Slave reset
+int SLAVE_RESET_PIN = 7;
 
 SoftwareSerial SUART(SUART_IN, SUART_OUT);  // RX, TX for Software Serial
 
@@ -21,9 +23,14 @@ volatile bool waitingForPing = false;
 volatile unsigned long lastPingTime = 0;
 volatile bool SlaveStatus = true;
 
-int RequestPingTimer = 1; // seconds
+int RequestPingTimer = 3; // seconds
+int SlaveTimeoutTime = 5; //seconds
+int SlaveResetTime = 20; //seconds
 
 void setup() {
+  pinMode(SLAVE_RESET_PIN, INPUT);   // configure pin to reset Slave as input by default
+  digitalWrite(SLAVE_RESET_PIN, LOW);  // if Slave should be reset, change pin mode to output
+
   delay(1000);
   Serial.begin(9600);  // Start Serial communication for debugging
   SUART.begin(9600);   // Initialize software serial communication
@@ -47,17 +54,31 @@ void loop() {
   }
 
   // Check if we are waiting for a ping and if the timeout has occurred
-  if (waitingForPing && (millis() - lastPingTime > 2000)) {
-    if (DEBUG){
+  if ((millis() - lastPingTime > SlaveTimeoutTime*1000)) {
+    if (DEBUG && SlaveStatus){
       Serial.println("Master: Slave not responding, declaring slave as not working");
     }
+    if (millis() - lastPingTime > SlaveResetTime*1000){
+      // reset Slave board
+      pinMode(SLAVE_RESET_PIN, OUTPUT);
+      if (DEBUG) {
+        Serial.println("Slave has been reset!  ");
+      }
+      lastPingTime = 0;
+      waitingForPing = false; // after resetting we don't wait for a response!
+      serialFlush();
+      delay(100);
+      SUART.begin(9600);
+      pinMode(SLAVE_RESET_PIN, INPUT);
+    }
+
     SlaveStatus = false;
     receivedPing = false;
     waitingForPing = false;  // Reset waiting flag
   }
 
   // Check for response from slave
-  if (true) {
+  if (SUART.available() > 0) {
     String response = SUART.readStringUntil('\n');
     response.trim();
     if (DEBUG){
@@ -68,6 +89,7 @@ void loop() {
     if (response == "ping") {
       receivedPing = true;
       SlaveStatus = true;
+      waitingForPing = false; // we received ping and are not waiting anymore
     }
   }
   delay(100);
@@ -128,3 +150,9 @@ void printSlaveStatus(bool status) {
     Serial.println("Slave NOT RESPONDING!!!");
   }
 }
+
+ void serialFlush(){
+  while(SUART.available() > 0) {
+    char t = SUART.read();
+  }
+}  

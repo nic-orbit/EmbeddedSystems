@@ -9,7 +9,7 @@ bool DEBUG = true; // use this to switch on debug prints into the serial monitor
 // Slave sends heartbeat signal to Master every second
 // If Slave stops sending heartbeat, Master takes over control
 
-int stepsPerRevolution = 2048*3;
+int stepsPerRevolution = 2048*3/3.5;
 Stepper myStepper = Stepper(stepsPerRevolution, 8, 10, 9, 11);
 
 
@@ -19,7 +19,7 @@ int SUART_OUT = 3;
 
 // Rotary encoder pins
 #define encoder0PinA 12  // CLK Output A (attachInterrupt)
-#define encoder0PinB 13  // DT Output B
+#define encoder0PinB 11  // DT Output B
 
 volatile long encoder0Pos = 0; // Position counter
 const int degreesPerStep = 18; // Encoder resolution: 18 degrees per step
@@ -54,7 +54,7 @@ void setup() {
 }
 
 void loop() {
-  // nothing to do here. 
+  // // nothing to do here. 
   Serial.println(Serial.available());
   delay(100);
 }
@@ -91,9 +91,9 @@ void moveSM_to_angle(long angle) {
   long steps = map(angle, 0, 360, 0, stepsPerRevolution);
 
   if (angle >= 0) {
-    myStepper.setSpeed(10);
+    myStepper.setSpeed(100);
   } else {
-    myStepper.setSpeed(-10);
+    myStepper.setSpeed(-100);
   }
 
   for (long i = 0; i < abs(steps); ++i) {
