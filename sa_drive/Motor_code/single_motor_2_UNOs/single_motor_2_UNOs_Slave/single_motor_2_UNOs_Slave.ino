@@ -10,21 +10,27 @@ bool DEBUG = true; // use this to switch on debug prints into the serial monitor
 // If Slave stops sending heartbeat, Master takes over control
 
 int stepsPerRevolution = 2048*3/3.5;
+int stepsPerRevolution_rotary = 20;
 Stepper myStepper = Stepper(stepsPerRevolution, 8, 10, 9, 11);
 
 
 // PIN allocations
-int SUART_IN = 2;
-int SUART_OUT = 3;
+int SUART_IN = 12;
+int SUART_OUT = 13;
 
 // Rotary encoder pins
-#define encoder0PinA 12  // CLK Output A (attachInterrupt)
-#define encoder0PinB 11  // DT Output B
+#define encoder0PinA 2  // CLK Output A (attachInterrupt)
+#define encoder0PinB 3  // DT Output B
 
 volatile long encoder0Pos = 0; // Position counter
 const int degreesPerStep = 18; // Encoder resolution: 18 degrees per step
 
 int angleIn = 0;
+
+int encoderPosCount = 0;
+int pinALast;
+int aVal;
+bool bCW;
 
 SoftwareSerial SUART(SUART_IN, SUART_OUT);  // RX, TX for Software Serial
 
@@ -42,12 +48,12 @@ void setup() {
   Timer1.attachInterrupt(checkSUART);  // Attach the checkSUART function to the timer interrupt
 
   // Set up the rotary encoder pins
-  pinMode(encoder0PinA, INPUT_PULLUP); // Use internal pull-up resistor
-  pinMode(encoder0PinB, INPUT_PULLUP); // Use internal pull-up resistor
+  pinMode(encoder0PinA, INPUT); // Use internal pull-up resistor
+  pinMode(encoder0PinB, INPUT); // Use internal pull-up resistor
 
   // Attach interrupt to the CLK pin (pin 2) with CHANGE mode
-  attachInterrupt(digitalPinToInterrupt(encoder0PinA), doEncoder, CHANGE);
-
+  // attachInterrupt(digitalPinToInterrupt(encoder0PinA), doEncoder, CHANGE);
+  
   Serial.println("start");
 
 
@@ -55,7 +61,30 @@ void setup() {
 
 void loop() {
   // // nothing to do here. 
-  Serial.println(Serial.available());
+  //Serial.println(Serial.available());
+  
+  aVal = digitalRead(encoder0PinA);
+  if (aVal != pinALast){ // Means the knob is rotating
+  // if the knob is rotating, we need to determine direction
+  // We do that by reading pin B.
+    if (digitalRead(encoder0PinB) != aVal) { // Means pin A Changed first - We're Rotating Clockwise
+      encoderPosCount --;
+      bCW = true;
+    } else {// Otherwise B changed first and we're moving CCW
+      bCW = false;
+      encoderPosCount++;
+    }
+    Serial.print ("Rotated: ");
+    if (bCW){
+      Serial.println ("counterclockwise");
+    }else{
+      Serial.println("clockwise");
+    }
+    Serial.print("Encoder Position: ");
+    Serial.println(encoderPosCount);
+  }
+  pinALast = aVal;
+  
   delay(100);
 }
 
@@ -91,6 +120,8 @@ void moveSM_to_angle(long angle) {
   long steps = map(angle, 0, 360, 0, stepsPerRevolution);
   long initialEncoderPos = encoder0Pos;
 
+  // attachInterrupt(digitalPinToInterrupt(encoder0PinA), doEncoder, CHANGE);
+
   if (angle >= 0) {
     myStepper.setSpeed(100);
   } else {
@@ -106,34 +137,40 @@ void moveSM_to_angle(long angle) {
     delay(10);  // Short delay to allow the motor to step smoothly
 
   // Check if encoder position matches the expected steps
-    long expectedPos = initialEncoderPos + (i + 1) * (steps > 0 ? 1 : -1);
+    long expectedPos = (i + 1);
+    Serial.print("Encoder0pos: ");
+    Serial.println(encoder0Pos);
       if (abs(encoder0Pos - (expectedPos/102)) > 5) { // Tolerance to be calculated
+        Serial.println(expectedPos);
         Serial.println("Encoder mismatch detected! Motor malfunctioning.");
         return;
 }
   }
+  // detachInterrupt(digitalPinToInterrupt(encoder0PinA));
+  
   Serial.print("Motor moved to angle: ");
   Serial.println(angle);
   Serial.print("Target steps: ");
   Serial.println(steps);
   Serial.print("Actual steps: ");
-  Serial.println((encoder0Pos - initialEncoderPos)*102);
+  Serial.println((encoder0Pos - initialEncoderPos)*stepsPerRevolution_rotary/stepsPerRevolution);
   delay(1000);
 }
 
 void doEncoder() {
-  Serial.println("entered doEncoder function");
-  // Read the state of the encoder pins
-  int stateA = digitalRead(encoder0PinA);
-  int stateB = digitalRead(encoder0PinB);
+  // Serial.println("entered doEncoder function");
+  // // Read the state of the encoder pins
+  // int stateA = digitalRead(encoder0PinA);
+  // int stateB = digitalRead(encoder0PinB);
 
-  // Determine the direction of rotation
-  if (stateA == stateB) {
-    encoder0Pos++;
-  } 
-  else {
-    encoder0Pos--;
-  }
-  Serial.println("Encoder Position: ");
-  Serial.println(encoder0Pos);
+  // // Determine the direction of rotation
+  // if (stateA == stateB) {
+  //   encoder0Pos++;
+  // } 
+  // else {
+  //   encoder0Pos--;
+  // }
+  // Serial.println("Encoder Position: ");
+  // Serial.println(encoder0Pos);
+  
 }
