@@ -30,12 +30,12 @@ def read_fault_knowledge(serialz, image_label, images):
             fault_knowledge = serialz[i].readline().decode().strip()
             if fault_knowledge == "":
                 print(f"Arduino {i} did not respond.")
-                image_label.config(image=images['error'])
-            elif fault_knowledge == "Slave not responding, taking over...":
+                image_label.config(image=images['master_error'])
+            elif fault_knowledge == "Slave NOT RESPONDING!!!":
                 print(f"Arduino {i} did not respond. Taking over control.")
                 image_label.config(image=images['slave_error'])
                 time.sleep(3)
-            elif fault_knowledge == "M1 fail":
+            elif fault_knowledge == "Motor fail":
                 print(f"Fault detected in M1 on Arduino {i}. M2 has been activated.")
                 image_label.config(image=images['m1_fail'])
             else:
@@ -60,14 +60,14 @@ def main():
 
     # Load images
     default_image = ImageTk.PhotoImage(Image.open("default.png"))
-    error_image = ImageTk.PhotoImage(Image.open("Master.png"))
+    master_error_image = ImageTk.PhotoImage(Image.open("Master.png"))
     slave_error_image = ImageTk.PhotoImage(Image.open("Slave.png"))
     m1_fail_image = ImageTk.PhotoImage(Image.open("M1.png"))
     m2_fail_image = ImageTk.PhotoImage(Image.open("M2.png"))
     serial_error_image = ImageTk.PhotoImage(Image.open("Serial.png"))
     images = {
         'default': default_image,
-        'error': error_image,
+        'master_error': master_error_image,
         'slave_error': slave_error_image,
         'm1_fail': m1_fail_image,
         'm2_fail': m2_fail_image,

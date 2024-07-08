@@ -3,29 +3,41 @@
 #include <Stepper.h>
 
 
-bool DEBUG = true; // use this to switch on debug prints into the serial monitor, 
+bool DEBUG = false; // use this to switch on debug prints into the serial monitor, 
               // this will break the python interface communication
 
 int stepsPerRevolution = 2048*3/3.5;
 Stepper myStepper = Stepper(stepsPerRevolution, 8, 10, 9, 11);
 int angleIn = 0;
 
+const byte numChars = 32;
+char receivedChars[numChars];   // an array to store the received data
+
+bool newData = false;
+
+int dataNumber = 0;  
+
 // PIN allocations for Software Serial
-int SUART_IN = 2;
-int SUART_OUT = 3;
+int SUART_IN = 12;
+int SUART_OUT = 13;
 // PIN allocation for Slave reset
 int SLAVE_RESET_PIN = 7;
 
 SoftwareSerial SUART(SUART_IN, SUART_OUT);  // RX, TX for Software Serial
+
+const int pinA = 2;
+const int pinB = 3;
+
+volatile int encoderPosition = 0;
+volatile bool motor_not_working = false;
 
 volatile bool receivedPing = false;
 volatile bool waitingForPing = false;
 volatile unsigned long lastPingTime = 0;
 volatile bool SlaveStatus = true;
 
-int RequestPingTimer = 3; // seconds
-int SlaveTimeoutTime = 5; //seconds
-int SlaveResetTime = 20; //seconds
+int RequestPingTimer = 1; // seconds
+int SlaveTimeoutTime = 3; //seconds
 
 void setup() {
   pinMode(SLAVE_RESET_PIN, INPUT);   // configure pin to reset Slave as input by default
@@ -40,11 +52,45 @@ void setup() {
   // Initialize Timer1 to trigger every second
   Timer1.initialize(RequestPingTimer*1000000);  // Set timer for 1 second (1,000,000 microseconds)
   Timer1.attachInterrupt(requestPing);  // Attach the requestPing function to the timer interrupt
+
+  pinMode(pinA, INPUT);
+  pinMode(pinB, INPUT);
+
+  attachInterrupt(digitalPinToInterrupt(pinA), updateEncoder, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(pinB), updateEncoder, CHANGE);
+
 }
 
-void loop() {
+void loop() 
+{
   // printSlaveStatus(SlaveOperational);
+  recvWithEndMarker();
+  if (newData) {
+    float previousAngle = encoderPosition*4.5; // get angle from rotary encoder with * 360/80 = 4.5
+    angleIn = atoi(receivedChars);
+    // Serial.println(receivedChars);
+    // Serial.println(angleIn);
+    moveSM_to_angle(angleIn);
+    delay(10);
+    float finalAngle = encoderPosition*4.5; 
+    float measuredAngle = previousAngle - finalAngle;
 
+    bool angle_correct = abs(angleIn - measuredAngle) < 36;
+
+    if(DEBUG){
+    Serial.print("Commanded Angle: ");
+    Serial.println(angleIn);
+    Serial.print("Measured Angle: ");
+    Serial.println(measuredAngle);
+    }
+
+    if (!angle_correct) {
+      Serial.println("Motor fail");
+      motor_not_working = true;
+    }
+    newData = false;
+  }
+    
   if (receivedPing) {
     if (DEBUG){
       Serial.println("Master received ping from slave");
@@ -58,19 +104,6 @@ void loop() {
     if (DEBUG && SlaveStatus){
       Serial.println("Master: Slave not responding, declaring slave as not working");
     }
-    if (millis() - lastPingTime > SlaveResetTime*1000){
-      // reset Slave board
-      pinMode(SLAVE_RESET_PIN, OUTPUT);
-      if (DEBUG) {
-        Serial.println("Slave has been reset!  ");
-      }
-      lastPingTime = 0;
-      waitingForPing = false; // after resetting we don't wait for a response!
-      serialFlush();
-      delay(100);
-      SUART.begin(9600);
-      pinMode(SLAVE_RESET_PIN, INPUT);
-    }
 
     SlaveStatus = false;
     receivedPing = false;
@@ -79,14 +112,14 @@ void loop() {
 
   // Check for response from slave
   if (SUART.available() > 0) {
-    String response = SUART.readStringUntil('\n');
-    response.trim();
-    if (DEBUG){
+    int response = SUART.read();
+    // response.trim();
+    if (DEBUG && response != 0){
       Serial.print("  [S]: "); 
       Serial.print(response);
       Serial.println();
     }
-    if (response == "ping") {
+    if (response == 41) {
       receivedPing = true;
       SlaveStatus = true;
       waitingForPing = false; // we received ping and are not waiting anymore
@@ -95,16 +128,67 @@ void loop() {
   delay(100);
 }
 
-// This function is called whenever data is received on the serial port
-void serialEvent() {
-  while (Serial.available() > 0) {
-    angleIn = Serial.parseInt();
-    moveSM_to_angle(angleIn);
-  }
+void recvWithEndMarker() {
+    static byte ndx = 0;
+    char endMarker = '\n';
+    char rc;
+    
+    if (Serial.available() > 0) {
+        rc = Serial.read();
+
+        if (rc != endMarker) {
+            receivedChars[ndx] = rc;
+            ndx++;
+            if (ndx >= numChars) {
+                ndx = numChars - 1;
+            }
+        }
+        else {
+            receivedChars[ndx] = '\0'; // terminate the string
+            ndx = 0;
+            newData = true;
+        }
+    }
 }
 
-void moveSM_to_angle(long angle) {
+// This function is called whenever data is received on the serial port
+// void serialEvent() {
+  
+//   delay(10);
+//   if (Serial.available() > 0) {
+//     Serial.println("while loop");
+//     angleIn = Serial.parseInt();
+//     moveSM_to_angle(angleIn);
+//     // break;
+//   }
+//   delay(10);
+//   float finalAngle = encoderPosition*4.5; 
+//   float measuredAngle = previousAngle - finalAngle;
 
+//   bool angle_correct = abs(angleIn - measuredAngle) < 5;
+
+//   Serial.print("Commanded Angle: ");
+//   Serial.println(angleIn);
+//   Serial.print("Measured Angle: ");
+//   Serial.println(measuredAngle);
+
+//   if (!angle_correct && DEBUG) {
+//     Serial.println("Mootooor fucky wucky :(");
+//     motor_not_working = true;
+//   }
+//   else if (DEBUG) {
+//     Serial.println("All goooood!");
+//   }
+// }
+
+void moveSM_to_angle(long angle) {
+  if (SlaveStatus) {
+    // do nothing
+    if (DEBUG){
+      Serial.println("Slave does the work!!!");
+    }
+  }
+  else {
     if (angle >= 0) {
     myStepper.setSpeed(10);
   } else {
@@ -120,21 +204,24 @@ void moveSM_to_angle(long angle) {
     //   Serial.println("Motor not working");
     //   return;
     // }
-    delay(10);  // Short delay to allow the motor to step smoothly
+    delay(10);
   }
-  Serial.print("Motor moved to angle: ");
-  Serial.println(angle);
+
+  }
   
-  Serial.println(steps);
-  delay(1000);
+  
+  
 }
+
 
 // Timer interrupt function to request ping
 void requestPing() {
   if (waitingForPing == false){
-    SUART.println("requestPing");
+    SUART.write(40); // 0b0101 = "requestPing"
+    String request_out = "40";
     if (DEBUG){
-      Serial.println("  [M]: requestPing");
+      Serial.print("  [M]: ");
+      Serial.println(request_out);
     }
     lastPingTime = millis();  // Record the time of the request
   }
@@ -143,10 +230,10 @@ void requestPing() {
 }
 
 void printSlaveStatus(bool status) {
-  if (status && DEBUG){
+  if (status){
     Serial.println("Slave IS OPERATIONAL");
   }
-  else if (DEBUG) {
+  else {
     Serial.println("Slave NOT RESPONDING!!!");
   }
 }
@@ -155,4 +242,18 @@ void printSlaveStatus(bool status) {
   while(SUART.available() > 0) {
     char t = SUART.read();
   }
-}  
+} 
+
+void updateEncoder() {
+  static int lastEncoded = 0;
+  int MSB = digitalRead(pinA);
+  int LSB = digitalRead(pinB);
+
+  int encoded = (MSB << 1) | LSB;
+  int sum = (lastEncoded << 2) | encoded;
+
+  if (sum == 0b1101 || sum == 0b0100 || sum == 0b0010 || sum == 0b1011) encoderPosition++;
+  if (sum == 0b1110 || sum == 0b0111 || sum == 0b0001 || sum == 0b1000) encoderPosition--;
+  
+  lastEncoded = encoded;
+}
