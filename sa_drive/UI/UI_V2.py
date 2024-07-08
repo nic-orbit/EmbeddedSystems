@@ -28,6 +28,7 @@ def read_fault_knowledge(serialz, image_label, images):
     for i in range(len(serialz)):
         try:
             fault_knowledge = serialz[i].readline().decode().strip()
+            print(fault_knowledge)
             if fault_knowledge == "":
                 print(f"Arduino {i} did not respond.")
                 image_label.config(image=images['master_error'])

@@ -72,6 +72,10 @@ void loop()
     // Serial.println(angleIn);
     moveSM_to_angle(angleIn);
     delay(10);
+    if (SlaveStatus){
+      // wait for slave to execute
+      delay(21000);
+    }
     float finalAngle = encoderPosition*4.5; 
     float measuredAngle = previousAngle - finalAngle;
 
